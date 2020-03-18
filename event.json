@@ -1,0 +1,12 @@
+{
+    "Records": [
+        {
+            "EventSource": "aws:sns",
+            "Sns": {
+                "Type": "Notification",
+                "MessageId": "00000000-0000-0000-0000-000000000000",
+                "Message": "{\"Event Source\":\"db-snapshot\",\"Source ID\":\"<SNAPSHOT_NAME>\",\"Event ID\":\"http://docs.amazonwebservices.com/AmazonRDS/latest/UserGuide/USER_Events.html#RDS-EVENT-0091\"}"
+            }
+        }
+    ]
+}
