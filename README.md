@@ -29,6 +29,10 @@ You will also need to delete the following manually:
    * The [CDKToolkit CloudFormation Stack](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=CDKToolkit) created by `npm run cdk bootstrap`.
    * The `cdktoolkit-stagingbucket-<...>` bucket.
 
+## Demo
+
+[![Demo](.github/demo-video.png)](https://www.youtube.com/watch?v=lyNGeDg6EII)
+
 ## License
 
 This library is licensed under the MIT-0 License. See the [LICENSE](./LICENSE) file.
