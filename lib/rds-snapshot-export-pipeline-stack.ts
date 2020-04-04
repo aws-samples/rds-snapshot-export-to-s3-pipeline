@@ -1,7 +1,7 @@
 import * as cdk from "@aws-cdk/core";
 import * as path from "path";
 import {CfnCrawler} from "@aws-cdk/aws-glue";
-import {ManagedPolicy, PolicyDocument, Role, ServicePrincipal} from "@aws-cdk/aws-iam";
+import {ManagedPolicy, PolicyDocument, Role, ServicePrincipal, AccountRootPrincipal} from "@aws-cdk/aws-iam";
 import {Code, Function, Runtime} from "@aws-cdk/aws-lambda";
 import {SnsEventSource} from "@aws-cdk/aws-lambda-event-sources";
 import {Key} from "@aws-cdk/aws-kms";
@@ -131,7 +131,11 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
         "Statement": [
           {
             "Principal": {
-              "AWS": [lambdaExecutionRole.roleArn, snapshotExportGlueCrawlerRole.roleArn]
+              "AWS": [
+                (new AccountRootPrincipal()).arn,
+                lambdaExecutionRole.roleArn,
+                snapshotExportGlueCrawlerRole.roleArn
+              ]
             },
             "Action": [
               "kms:Encrypt",
