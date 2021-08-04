@@ -171,8 +171,8 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
     new CfnEventSubscription(this, 'RdsSnapshotEventNotification', {
       snsTopicArn: snapshotEventTopic.topicArn,
       enabled: true,
-      eventCategories: ['creation'],
-      sourceType: 'db-snapshot',
+      eventCategories: props.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? ['backup'] : ['creation'],
+      sourceType: props.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? "db-cluster-snapshot" : "db-snapshot",
     });
 
     new Function(this, "LambdaFunction", {
@@ -187,6 +187,7 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
         SNAPSHOT_BUCKET_NAME: bucket.bucketName,
         SNAPSHOT_TASK_ROLE: snapshotExportTaskRole.roleArn,
         SNAPSHOT_TASK_KEY: snapshotExportEncryptionKey.keyArn,
+        DB_SNAPSHOT_TYPE: props.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? "cluster-snapshot" : "snapshot",
       },
       role: lambdaExecutionRole,
       timeout: cdk.Duration.seconds(30),
