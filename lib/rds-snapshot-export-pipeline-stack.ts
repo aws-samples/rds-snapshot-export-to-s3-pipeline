@@ -172,7 +172,7 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
       snsTopicArn: snapshotEventTopic.topicArn,
       enabled: true,
       eventCategories: props.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? ['backup'] : ['creation'],
-      sourceType: props.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? "db-cluster-snapshot" : "db-snapshot",
+      sourceType: props.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? 'db-cluster-snapshot' : 'db-snapshot',
     });
 
     new Function(this, "LambdaFunction", {
