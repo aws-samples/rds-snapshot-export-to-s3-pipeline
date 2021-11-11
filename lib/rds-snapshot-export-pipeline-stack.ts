@@ -13,7 +13,9 @@ export enum RdsEventId {
   /**
    * Event IDs for which the Lambda supports starting a snapshot export task.
    *
-   * See: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.html
+   * See:
+   *   https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/USER_Events.Messages.html#USER_Events.Messages.cluster-snapshot
+   *   https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.Messages.html#USER_Events.Messages.snapshot
    */
   // For automated snapshots of Aurora RDS clusters
   DB_AUTOMATED_AURORA_SNAPSHOT_CREATED = "RDS-EVENT-0169",
@@ -171,8 +173,8 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
     new CfnEventSubscription(this, 'RdsSnapshotEventNotification', {
       snsTopicArn: snapshotEventTopic.topicArn,
       enabled: true,
-      eventCategories: ['creation'],
-      sourceType: 'db-snapshot',
+      eventCategories: props.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? ['backup'] : ['creation'],
+      sourceType: props.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? 'db-cluster-snapshot' : 'db-snapshot',
     });
 
     new Function(this, "LambdaFunction", {
@@ -187,6 +189,7 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
         SNAPSHOT_BUCKET_NAME: bucket.bucketName,
         SNAPSHOT_TASK_ROLE: snapshotExportTaskRole.roleArn,
         SNAPSHOT_TASK_KEY: snapshotExportEncryptionKey.keyArn,
+        DB_SNAPSHOT_TYPE: props.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? "cluster-snapshot" : "snapshot",
       },
       role: lambdaExecutionRole,
       timeout: cdk.Duration.seconds(30),

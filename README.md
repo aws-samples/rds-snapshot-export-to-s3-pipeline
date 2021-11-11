@@ -14,7 +14,7 @@ This repository creates the automation necessary to export Amazon RDS snapshots 
     * `npm install`
     * `npm run cdk bootstrap`
     * `npm run cdk deploy`
-5. Open up your `<dbName>-rds-snapshot-exporter` function in the [AWS Lambda](https://console.aws.amazon.com/lambda/home) console and configure a test event using the contents of [$/event.json](./event.json) as a template.
+5. Open up your `<dbName>-rds-snapshot-exporter` function in the [AWS Lambda](https://console.aws.amazon.com/lambda/home) console and configure a test event using the contents of [$/event.json](./event.json) OR [$/event.aurora.json](./event.aurora.json) as a template, depending on whether or not you're using Amazon Aurora.
     * **NOTE:** The example content is a *subset* of an SNS event notification containing the minimum valid event data necessary to successfully trigger the Lambda function's execution. You should modify the `<SNAPSHOT_NAME>` value within the `Message` key to match an existing RDS snapshot (e.g. `rds:<dbName>-YYYY-MM-DD-hh-mm`). You may also need to modify the `MessageId` if you are attempting to export the same snapshot more than once.
 6. Click the **Test** button to start an export.
 

@@ -45,7 +45,7 @@ def handler(event, context):
             ExportTaskIdentifier=(
                 (message["Source ID"][4:27] + '-').replace("--", "-") + event["Records"][0]["Sns"]["MessageId"]
             ),
-            SourceArn=f"arn:aws:rds:{os.environ['AWS_REGION']}:{account_id}:snapshot:{message['Source ID']}",
+            SourceArn=f"arn:aws:rds:{os.environ['AWS_REGION']}:{account_id}:{os.environ['DB_SNAPSHOT_TYPE']}:{message['Source ID']}",
             S3BucketName=os.environ["SNAPSHOT_BUCKET_NAME"],
             IamRoleArn=os.environ["SNAPSHOT_TASK_ROLE"],
             KmsKeyId=os.environ["SNAPSHOT_TASK_KEY"],
