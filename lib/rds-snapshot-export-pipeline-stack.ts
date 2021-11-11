@@ -13,7 +13,9 @@ export enum RdsEventId {
   /**
    * Event IDs for which the Lambda supports starting a snapshot export task.
    *
-   * See: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.html
+   * See:
+   *   https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/USER_Events.Messages.html#USER_Events.Messages.cluster-snapshot
+   *   https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.Messages.html#USER_Events.Messages.snapshot
    */
   // For automated snapshots of Aurora RDS clusters
   DB_AUTOMATED_AURORA_SNAPSHOT_CREATED = "RDS-EVENT-0169",
