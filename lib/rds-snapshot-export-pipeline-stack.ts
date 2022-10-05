@@ -21,7 +21,34 @@ export enum RdsEventId {
   DB_AUTOMATED_AURORA_SNAPSHOT_CREATED = "RDS-EVENT-0169",
 
   // For automated snapshots of non-Aurora RDS clusters
-  DB_AUTOMATED_SNAPSHOT_CREATED = "RDS-EVENT-0091"
+  DB_AUTOMATED_SNAPSHOT_CREATED = "RDS-EVENT-0091",
+
+  // For manual snapshots and backup service snapshots of non-Aurora RDS clusters
+  DB_MANUAL_SNAPSHOT_CREATED = "RDS-EVENT-0042"
+}
+
+export enum RdsSnapshotType {
+  /**
+   * Snapshot Types supported by the Lambda. Each RdsEventId used should correlate with the corresponsing snapshot type.
+   * For instance: Automated snapshot event ID should be configured to work with Automated snapshot type
+   * 
+   * See:
+   *  https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_WorkingWithAutomatedBackups.html#AutomatedBackups.AWSBackup
+   *  
+   */
+  // For automated snapshots (system snapshots)
+  DB_AUTOMATED_SNAPSHOT = "AUTOMATED",
+
+  // For Backup service snapshots 
+  DB_BACKUP_SNAPSHOT = "BACKUP",
+
+  // For Backup service snapshots 
+  DB_MANUAL_SNAPSHOT = "MANUAL"
+}
+
+export interface RdsSnapshot {
+  rdsEventId: RdsEventId;
+  rdsSnapshotType: RdsSnapshotType;
 }
 
 export interface RdsSnapshotExportPipelineStackProps extends cdk.StackProps {
@@ -38,9 +65,9 @@ export interface RdsSnapshotExportPipelineStackProps extends cdk.StackProps {
   readonly dbName: string;
 
   /**
-   * The RDS event ID for which the function should be triggered.
+   * The RDS event ID and snapshot type for which the function should be triggered.
    */
-  readonly rdsEventId: RdsEventId;
+  readonly rdsEvents: Array<RdsSnapshot>;
 };
 
 export class RdsSnapshotExportPipelineStack extends cdk.Stack {
@@ -93,6 +120,11 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
             {
               "Action": "iam:PassRole",
               "Resource": [snapshotExportTaskRole.roleArn],
+              "Effect": "Allow",
+            },
+            {
+              "Action": "backup:DescribeBackupJob",
+              "Resource": "*",
               "Effect": "Allow",
             }
           ]
@@ -170,12 +202,19 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
       displayName: "rds-snapshot-creation"
     });
 
-    new CfnEventSubscription(this, 'RdsSnapshotEventNotification', {
-      snsTopicArn: snapshotEventTopic.topicArn,
-      enabled: true,
-      eventCategories: props.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? ['backup'] : ['creation'],
-      sourceType: props.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? 'db-cluster-snapshot' : 'db-snapshot',
-    });
+    props.rdsEvents.find(rdsEvent => rdsEvent.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED) ? 
+      new CfnEventSubscription(this, 'RdsSnapshotEventNotification', {
+        snsTopicArn: snapshotEventTopic.topicArn,
+        enabled: true,
+        eventCategories: ['backup'],
+        sourceType: 'db-cluster-snapshot',
+      }) :
+      new CfnEventSubscription(this, 'RdsSnapshotEventNotification', {
+        snsTopicArn: snapshotEventTopic.topicArn,
+        enabled: true,
+        eventCategories: ['creation'],
+        sourceType: 'db-snapshot',
+      });
 
     new Function(this, "LambdaFunction", {
       functionName: props.dbName + "-rds-snapshot-exporter",
@@ -183,13 +222,14 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
       handler: "main.handler",
       code: Code.fromAsset(path.join(__dirname, "/../assets/exporter/")),
       environment: {
-        RDS_EVENT_ID: props.rdsEventId,
+        RDS_EVENT_IDS: new Array(props.rdsEvents.map(e => { return e.rdsEventId })).join(),
+        RDS_SNAPSHOT_TYPES: new Array(props.rdsEvents.map(e => { return e.rdsSnapshotType })).join(),
         DB_NAME: props.dbName,
         LOG_LEVEL: "INFO",
         SNAPSHOT_BUCKET_NAME: bucket.bucketName,
         SNAPSHOT_TASK_ROLE: snapshotExportTaskRole.roleArn,
         SNAPSHOT_TASK_KEY: snapshotExportEncryptionKey.keyArn,
-        DB_SNAPSHOT_TYPE: props.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? "cluster-snapshot" : "snapshot",
+        DB_SNAPSHOT_TYPES: new Array(props.rdsEvents.map(e => { return e.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? "cluster-snapshot" : "snapshot" })).join()
       },
       role: lambdaExecutionRole,
       timeout: cdk.Duration.seconds(30),
