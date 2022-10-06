@@ -1,6 +1,7 @@
 ## RDS Snapshot Export to S3 Pipeline
 
-This repository creates the automation necessary to export Amazon RDS snapshots to S3 for a specific database whenever an automated snapshot is created.
+This repository creates the automation necessary to export Amazon RDS snapshots to S3 for a specific database whenever a snapshot is created, 
+whether created by an automated snapshot, manual, or by AWS Backup service.
 
 ## Usage
 
@@ -8,7 +9,12 @@ This repository creates the automation necessary to export Amazon RDS snapshots 
 2. Clone this repository and `cd` into it.
 3. Modify the arguments to the `RdsSnapshotExportPipelineStack` constructor in `$/bin/cdk.ts` according to your environment.
     * `dbName`: This RDS database must already exist.
-    * `rdsEventId`: This should be `RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED` for Amazon Aurora databases or `RdsEventId.DB_AUTOMATED_SNAPSHOT_CREATED` otherwise.
+    * `rdsEvents`: This should be indicate the RDS event ID and corresponsing snapshot type, where:
+      * `rdsEventId` should be `RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED` for Amazon Aurora databases, `RdsEventId.DB_AUTOMATED_SNAPSHOT_CREATED` for RDS automated snapshots, or `RdsEventId.DB_MANUAL_SNAPSHOT_CREATED` for AWS Backup service or otherwise.
+      * `rdsSnapshotType` should be:
+        * `RdsSnapshotType.DB_AUTOMATED_SNAPSHOT` for Automated snapshots or 
+        * `RdsSnapshotType.DB_BACKUP_SNAPSHOT`for Backup service snapshots or
+        * `RdsSnapshotType.DB_MANUAL_SNAPSHOT`for manual snapshots.
     * `s3BucketName`: An S3 bucket with the provided name will be created automatically for you.
 4. Execute the following:
     * `npm install`
