@@ -21,8 +21,8 @@ whether created by an automated snapshot, manual, or by AWS Backup service.
         * `RdsSnapshotType.DB_MANUAL_SNAPSHOT`for manual snapshots.
     * `s3BucketName`: An S3 bucket with the provided name will be created automatically for you.
 
-  For example, the following configuration will automatically export all snapshots, and snapshot-copies, created by both the Automated service 
-  and by AWS Backup of an existing RDS databased named `my-rds-db`, to a new S3 bucket named `my-rds-db-snapshots-export`:
+    For example, the following configuration will automatically export all snapshots and snapshot-copies, created by both the Automated service 
+    and by AWS Backup of an existing RDS database named `my-rds-db`, to a new S3 bucket named `my-rds-db-snapshots-export`:
     ```
     dbName: 'my-rds-db',
     rdsEvents: [
