@@ -10,12 +10,37 @@ whether created by an automated snapshot, manual, or by AWS Backup service.
 3. Modify the arguments to the `RdsSnapshotExportPipelineStack` constructor in `$/bin/cdk.ts` according to your environment.
     * `dbName`: This RDS database must already exist.
     * `rdsEvents`: This should be indicate the RDS event ID and corresponsing snapshot type, where:
-      * `rdsEventId` should be `RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED` for Amazon Aurora databases, `RdsEventId.DB_AUTOMATED_SNAPSHOT_CREATED` for RDS automated snapshots, or `RdsEventId.DB_MANUAL_SNAPSHOT_CREATED` for AWS Backup service or otherwise.
+      * `rdsEventId` should be:
+        * `RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED` for Amazon Aurora databases
+        * `RdsEventId.DB_AUTOMATED_SNAPSHOT_CREATED` for RDS automated snapshots
+        * `RdsEventId.DB_MANUAL_SNAPSHOT_CREATED` for AWS Backup service or otherwise.
+        * `RdsEventId.DB_BACKUP_SNAPSHOT_FINISHED_COPY` for AWS Backup service snapshots, created shortly after a prior snapshot has been taken.
       * `rdsSnapshotType` should be:
         * `RdsSnapshotType.DB_AUTOMATED_SNAPSHOT` for Automated snapshots or 
         * `RdsSnapshotType.DB_BACKUP_SNAPSHOT`for Backup service snapshots or
         * `RdsSnapshotType.DB_MANUAL_SNAPSHOT`for manual snapshots.
     * `s3BucketName`: An S3 bucket with the provided name will be created automatically for you.
+
+  For example, the following configuration will automatically export all snapshots, and snapshot-copies, created by both the Automated service 
+  and by AWS Backup of an existing RDS databased named `my-rds-db`, to a new S3 bucket named `my-rds-db-snapshots-export`:
+    ```
+    dbName: 'my-rds-db',
+    rdsEvents: [
+      {
+        rdsEventId: RdsEventId.DB_AUTOMATED_SNAPSHOT_CREATED,
+        rdsSnapshotType: RdsSnapshotType.DB_AUTOMATED_SNAPSHOT
+      },
+      {
+        rdsEventId: RdsEventId.DB_MANUAL_SNAPSHOT_CREATED,
+        rdsSnapshotType: RdsSnapshotType.DB_BACKUP_SNAPSHOT
+      },
+      {
+        rdsEventId: RdsEventId.DB_BACKUP_SNAPSHOT_FINISHED_COPY,
+        rdsSnapshotType: RdsSnapshotType.DB_BACKUP_SNAPSHOT
+      }
+    ],
+    s3BucketName: 'my-rds-db-snapshots-export'
+    ```
 4. Execute the following:
     * `npm install`
     * `npm run cdk bootstrap`

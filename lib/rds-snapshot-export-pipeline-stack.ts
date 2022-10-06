@@ -12,10 +12,14 @@ import {Topic} from "@aws-cdk/aws-sns";
 export enum RdsEventId {
   /**
    * Event IDs for which the Lambda supports starting a snapshot export task.
+   * 
+   * Note that with AWS Backup service, the service triggers a Manual snapshot created event (instead of automated),
+   * where a new snapshot is created, or a finished copy notification when a prior snapshot of the same DB has been taken recently. 
    *
    * See:
    *   https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/USER_Events.Messages.html#USER_Events.Messages.cluster-snapshot
    *   https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.Messages.html#USER_Events.Messages.snapshot
+   *   https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_WorkingWithAutomatedBackups.html 
    */
   // For automated snapshots of Aurora RDS clusters
   DB_AUTOMATED_AURORA_SNAPSHOT_CREATED = "RDS-EVENT-0169",
@@ -24,7 +28,10 @@ export enum RdsEventId {
   DB_AUTOMATED_SNAPSHOT_CREATED = "RDS-EVENT-0091",
 
   // For manual snapshots and backup service snapshots of non-Aurora RDS clusters
-  DB_MANUAL_SNAPSHOT_CREATED = "RDS-EVENT-0042"
+  DB_MANUAL_SNAPSHOT_CREATED = "RDS-EVENT-0042",
+
+  // For backup service snapshots copying ()
+  DB_BACKUP_SNAPSHOT_FINISHED_COPY = "RDS-EVENT-0197",
 }
 
 export enum RdsSnapshotType {
@@ -202,19 +209,34 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
       displayName: "rds-snapshot-creation"
     });
 
-    props.rdsEvents.find(rdsEvent => rdsEvent.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED) ? 
-      new CfnEventSubscription(this, 'RdsSnapshotEventNotification', {
-        snsTopicArn: snapshotEventTopic.topicArn,
-        enabled: true,
-        eventCategories: ['backup'],
-        sourceType: 'db-cluster-snapshot',
-      }) :
-      new CfnEventSubscription(this, 'RdsSnapshotEventNotification', {
-        snsTopicArn: snapshotEventTopic.topicArn,
-        enabled: true,
-        eventCategories: ['creation'],
-        sourceType: 'db-snapshot',
-      });
+    // Creates the appropriate RDS Event Subscription for RDS or Aurora clusters, to catch snapshot creation events 
+    props.rdsEvents.find(rdsEvent => 
+      rdsEvent.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED) ? 
+        new CfnEventSubscription(this, 'RdsSnapshotEventNotification', {
+          snsTopicArn: snapshotEventTopic.topicArn,
+          enabled: true,
+          eventCategories: ['backup'],
+          sourceType: 'db-cluster-snapshot',
+        }) :
+        new CfnEventSubscription(this, 'RdsSnapshotEventNotification', {
+          snsTopicArn: snapshotEventTopic.topicArn,
+          enabled: true,
+          eventCategories: ['creation'],
+          sourceType: 'db-snapshot',
+        }
+      );
+
+    // With AWS Backup Service, if a prior recent snapshot exists (if created by the Automated snapshot) 
+    // the serivce will simply copy the existing snapshot, and trigger another notification  
+    props.rdsEvents.find(rdsEvent => 
+      rdsEvent.rdsEventId == RdsEventId.DB_BACKUP_SNAPSHOT_FINISHED_COPY) ? 
+        new CfnEventSubscription(this, 'RdsBackupCopyEventNotification', {
+          snsTopicArn: snapshotEventTopic.topicArn,
+          enabled: true,
+          eventCategories: ['notification'],
+          sourceType: 'db-snapshot',
+        }
+      ) : true;
 
     new Function(this, "LambdaFunction", {
       functionName: props.dbName + "-rds-snapshot-exporter",
