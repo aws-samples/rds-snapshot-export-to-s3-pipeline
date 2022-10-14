@@ -1,13 +1,8 @@
-import * as cdk from "@aws-cdk/core";
+import { aws_lambda_event_sources, Stack, StackProps, Duration } from 'aws-cdk-lib';
+import { Construct } from 'constructs';
 import * as path from "path";
-import {CfnCrawler} from "@aws-cdk/aws-glue";
-import {ManagedPolicy, PolicyDocument, Role, ServicePrincipal, AccountRootPrincipal} from "@aws-cdk/aws-iam";
-import {Code, Function, Runtime} from "@aws-cdk/aws-lambda";
-import {SnsEventSource} from "@aws-cdk/aws-lambda-event-sources";
-import {Key} from "@aws-cdk/aws-kms";
-import {CfnEventSubscription} from "@aws-cdk/aws-rds";
-import {BlockPublicAccess, Bucket} from "@aws-cdk/aws-s3";
-import {Topic} from "@aws-cdk/aws-sns";
+import { aws_s3, aws_glue, aws_iam, aws_lambda, aws_sns, aws_rds, aws_kms } from 'aws-cdk-lib';
+import { Policy } from 'aws-cdk-lib/aws-iam';
 
 export enum RdsEventId {
   /**
@@ -58,7 +53,7 @@ export interface RdsSnapshot {
   rdsSnapshotType: RdsSnapshotType;
 }
 
-export interface RdsSnapshotExportPipelineStackProps extends cdk.StackProps {
+export interface RdsSnapshotExportPipelineStackProps extends StackProps {
   /**
    * Name of the S3 bucket to which snapshot exports should be saved.
    *
@@ -77,20 +72,20 @@ export interface RdsSnapshotExportPipelineStackProps extends cdk.StackProps {
   readonly rdsEvents: Array<RdsSnapshot>;
 };
 
-export class RdsSnapshotExportPipelineStack extends cdk.Stack {
-  constructor(scope: cdk.Construct, id: string, props: RdsSnapshotExportPipelineStackProps) {
+export class RdsSnapshotExportPipelineStack extends Stack {
+  constructor(scope: Construct, id: string, props: RdsSnapshotExportPipelineStackProps) {
     super(scope, id, props);
 
-    const bucket = new Bucket(this, "SnapshotExportBucket", {
+    const bucket = new aws_s3.Bucket(this, "SnapshotExportBucket", {
       bucketName: props.s3BucketName,
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+      blockPublicAccess: aws_s3.BlockPublicAccess.BLOCK_ALL,
     });
 
-    const snapshotExportTaskRole = new Role(this, "SnapshotExportTaskRole", {
-      assumedBy: new ServicePrincipal("export.rds.amazonaws.com"),
+    const snapshotExportTaskRole = new aws_iam.Role(this, "SnapshotExportTaskRole", {
+      assumedBy: new aws_iam.ServicePrincipal("export.rds.amazonaws.com"),
       description: "Role used by RDS to perform snapshot exports to S3",
       inlinePolicies: {
-        "SnapshotExportTaskPolicy": PolicyDocument.fromJson({
+        "SnapshotExportTaskPolicy": aws_iam.PolicyDocument.fromJson({
           "Version": "2012-10-17",
           "Statement": [
             {
@@ -112,11 +107,11 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
       }
     });
 
-    const lambdaExecutionRole = new Role(this, "RdsSnapshotExporterLambdaExecutionRole", {
-      assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
+    const lambdaExecutionRole = new aws_iam.Role(this, "RdsSnapshotExporterLambdaExecutionRole", {
+      assumedBy: new aws_iam.ServicePrincipal("lambda.amazonaws.com"),
       description: 'RdsSnapshotExportToS3 Lambda execution role for the "' + props.dbName + '" database.',
       inlinePolicies: {
-        "SnapshotExporterLambdaPolicy": PolicyDocument.fromJson({
+        "SnapshotExporterLambdaPolicy": aws_iam.PolicyDocument.fromJson({
           "Version": "2012-10-17",
           "Statement": [
             {
@@ -138,15 +133,15 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
         })
       },
       managedPolicies: [
-        ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole"),
+        aws_iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole"),
       ],
     });
 
-    const snapshotExportGlueCrawlerRole = new Role(this, "SnapshotExportsGlueCrawlerRole", {
-      assumedBy: new ServicePrincipal("glue.amazonaws.com"),
+    const snapshotExportGlueCrawlerRole = new aws_iam.Role(this, "SnapshotExportsGlueCrawlerRole", {
+      assumedBy: new aws_iam.ServicePrincipal("glue.amazonaws.com"),
       description: "Role used by RDS to perform snapshot exports to S3",
       inlinePolicies: {
-        "SnapshotExportsGlueCrawlerPolicy": PolicyDocument.fromJson({
+        "SnapshotExportsGlueCrawlerPolicy": aws_iam.PolicyDocument.fromJson({
           "Version": "2012-10-17",
           "Statement": [
             {
@@ -161,19 +156,30 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
         }),
       },
       managedPolicies: [
-        ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSGlueServiceRole"),
+        aws_iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSGlueServiceRole"),
       ],
     });
 
-    const snapshotExportEncryptionKey = new Key(this, "SnapshotExportEncryptionKey", {
+    const snapshotExportEncryptionKey = new aws_kms.Key(this, "SnapshotExportEncryptionKey", {
       alias: props.dbName + "-snapshot-exports",
-      policy: PolicyDocument.fromJson({
+      policy: aws_iam.PolicyDocument.fromJson({
         "Version": "2012-10-17",
         "Statement": [
           {
             "Principal": {
               "AWS": [
-                (new AccountRootPrincipal()).arn,
+                (new aws_iam.AccountRootPrincipal()).arn
+              ]
+            },
+            "Action": [
+              "kms:*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+          },
+          {
+            "Principal": {
+              "AWS": [
                 lambdaExecutionRole.roleArn,
                 snapshotExportGlueCrawlerRole.roleArn
               ]
@@ -186,10 +192,12 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
               "kms:DescribeKey"
             ],
             "Resource": "*",
-            "Effect": "Allow",
+            "Effect": "Allow"
           },
           {
-            "Principal": lambdaExecutionRole.roleArn,
+            "Principal": {
+              "AWS": lambdaExecutionRole.roleArn
+            },
             "Action": [
               "kms:CreateGrant",
               "kms:ListGrants",
@@ -197,28 +205,28 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
             ],
             "Resource": "*",
             "Condition": {
-                "Bool": {"kms:GrantIsForAWSResource": true}
+              "Bool": { "kms:GrantIsForAWSResource": true }
             },
-            "Effect": "Allow",
+            "Effect": "Allow"
           }
         ]
       })
     });
 
-    const snapshotEventTopic = new Topic(this, "SnapshotEventTopic", {
+    const snapshotEventTopic = new aws_sns.Topic(this, "SnapshotEventTopic", {
       displayName: "rds-snapshot-creation"
     });
 
     // Creates the appropriate RDS Event Subscription for RDS or Aurora clusters, to catch snapshot creation events 
     props.rdsEvents.find(rdsEvent => 
       rdsEvent.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED) ? 
-        new CfnEventSubscription(this, 'RdsSnapshotEventNotification', {
+        new aws_rds.CfnEventSubscription(this, 'RdsSnapshotEventNotification', {
           snsTopicArn: snapshotEventTopic.topicArn,
           enabled: true,
           eventCategories: ['backup'],
           sourceType: 'db-cluster-snapshot',
         }) :
-        new CfnEventSubscription(this, 'RdsSnapshotEventNotification', {
+        new aws_rds.CfnEventSubscription(this, 'RdsSnapshotEventNotification', {
           snsTopicArn: snapshotEventTopic.topicArn,
           enabled: true,
           eventCategories: ['creation'],
@@ -230,7 +238,7 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
     // the serivce will simply copy the existing snapshot, and trigger another notification  
     props.rdsEvents.find(rdsEvent => 
       rdsEvent.rdsEventId == RdsEventId.DB_BACKUP_SNAPSHOT_FINISHED_COPY) ? 
-        new CfnEventSubscription(this, 'RdsBackupCopyEventNotification', {
+        new aws_rds.CfnEventSubscription(this, 'RdsBackupCopyEventNotification', {
           snsTopicArn: snapshotEventTopic.topicArn,
           enabled: true,
           eventCategories: ['notification'],
@@ -238,11 +246,11 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
         }
       ) : true;
 
-    new Function(this, "LambdaFunction", {
+    new aws_lambda.Function(this, "LambdaFunction", {
       functionName: props.dbName + "-rds-snapshot-exporter",
-      runtime: Runtime.PYTHON_3_8,
+      runtime: aws_lambda.Runtime.PYTHON_3_8,
       handler: "main.handler",
-      code: Code.fromAsset(path.join(__dirname, "/../assets/exporter/")),
+      code: aws_lambda.Code.fromAsset(path.join(__dirname, "/../assets/exporter/")),
       environment: {
         RDS_EVENT_IDS: new Array(props.rdsEvents.map(e => { return e.rdsEventId })).join(),
         RDS_SNAPSHOT_TYPES: new Array(props.rdsEvents.map(e => { return e.rdsSnapshotType })).join(),
@@ -254,13 +262,13 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
         DB_SNAPSHOT_TYPES: new Array(props.rdsEvents.map(e => { return e.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? "cluster-snapshot" : "snapshot" })).join()
       },
       role: lambdaExecutionRole,
-      timeout: cdk.Duration.seconds(30),
+      timeout: Duration.seconds(30),
       events: [
-        new SnsEventSource(snapshotEventTopic)
+        new aws_lambda_event_sources.SnsEventSource(snapshotEventTopic)
       ]
     });
 
-    new CfnCrawler(this, "SnapshotExportCrawler", {
+    new aws_glue.CfnCrawler(this, "SnapshotExportCrawler", {
       name: props.dbName + "-rds-snapshot-crawler",
       role: snapshotExportGlueCrawlerRole.roleArn,
       targets: {

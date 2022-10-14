@@ -1,6 +1,6 @@
 {
   "name": "rds-snapshot-export-to-s3-pipeline",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "bin": {
     "cdk": "bin/cdk.js"
   },
@@ -10,20 +10,12 @@
     "cdk": "cdk"
   },
   "devDependencies": {
-    "@types/node": "13.9.1",
-    "aws-cdk": "1.95.2",
-    "ts-node": "^8.6.2",
+    "@types/node": "^13.13.52",
+    "ts-node": "^8.10.2",
     "typescript": "~3.8.3"
   },
   "dependencies": {
-    "@aws-cdk/aws-glue": "1.95.2",
-    "@aws-cdk/aws-iam": "1.95.2",
-    "@aws-cdk/aws-kms": "1.95.2",
-    "@aws-cdk/aws-lambda": "1.95.2",
-    "@aws-cdk/aws-lambda-event-sources": "1.95.2",
-    "@aws-cdk/aws-rds": "1.95.2",
-    "@aws-cdk/aws-sns": "1.95.2",
-    "@aws-cdk/core": "1.95.2",
+    "aws-cdk-lib": "^2.46.0",
     "source-map-support": "^0.5.16"
   }
 }
