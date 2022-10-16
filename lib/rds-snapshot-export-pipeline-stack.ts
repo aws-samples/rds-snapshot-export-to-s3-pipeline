@@ -115,18 +115,16 @@ export class RdsSnapshotExportPipelineStack extends Stack {
           "Version": "2012-10-17",
           "Statement": [
             {
-              "Action": "rds:StartExportTask",
+              "Action": [
+                "rds:StartExportTask",
+                "rds:DescribeDBSnapshots"
+              ],
               "Resource": "*",
               "Effect": "Allow",
             },
             {
               "Action": "iam:PassRole",
               "Resource": [snapshotExportTaskRole.roleArn],
-              "Effect": "Allow",
-            },
-            {
-              "Action": "backup:DescribeBackupJob",
-              "Resource": "*",
               "Effect": "Allow",
             }
           ]

@@ -36,6 +36,8 @@ rds_event_ids = RDS_EVENT_IDS.split(",")
 rds_snapshot_types = RDS_SNAPSHOT_TYPES.split(",")
 db_snapshot_types = DB_SNAPSHOT_TYPES.split(",")
 
+SNAPSHOT_KEY_STRING = ":snapshot:"
+
 class RdsSnapshotType(str, Enum):
     AUTOMATED = "AUTOMATED"
     BACKUP = "BACKUP"
@@ -127,41 +129,41 @@ def process_manual_snapshot(message, message_id, db_snapshot_type):
 
 """
 An AWS Backup service snapshot notification does not contain the DB name, 
-therefore an additional step is required to retrieve the backup job details
-and extract the resourceARN to compare it against the expected DB_NAME
+therefore an additional step is required to retrieve the snapshot details
+and extract the DB Identifier to compare it against the expected DB_NAME
 """
 def process_backup_snapshot(message, message_id, db_snapshot_type):
-    backup_job = get_resourceArn_from_job(message["Source ID"][14:50].upper())
+    source_arn = message['Source ARN']
+    snapshot_id = source_arn[source_arn.rfind(SNAPSHOT_KEY_STRING) + len(SNAPSHOT_KEY_STRING):256]
+    response = boto3.client("rds").describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
 
-    if (backup_job and "ResourceArn" in backup_job and backup_job["ResourceArn"].endswith(DB_NAME)):
-        export_task_identifier = (DB_NAME + '-').replace("--", "-") + backup_job["CreationDate"][:10] + '-' + message_id
-        source_arn = message['Source ARN']
-        start_export_task(export_task_identifier, source_arn)
+    logger.debug(response)
+
+    if response and len(response["DBSnapshots"]) > 0:
+        snapshot = response["DBSnapshots"][0]
+     
+        if ("SnapshotCreateTime" in snapshot):
+            snapshot["SnapshotCreateTime"] = str(snapshot["SnapshotCreateTime"])
+        if ("InstanceCreateTime" in snapshot):
+            snapshot["InstanceCreateTime"] = str(snapshot["InstanceCreateTime"])
+        if ("OriginalSnapshotCreateTime" in snapshot):
+            snapshot["OriginalSnapshotCreateTime"] = str(snapshot["OriginalSnapshotCreateTime"])
+
+        logger.debug(f"describing snapshot: {snapshot_id}, of source_arn {source_arn}")
+        logger.debug(snapshot)
+
+        if (snapshot and "DBInstanceIdentifier" in snapshot and snapshot["DBInstanceIdentifier"] == DB_NAME):
+            export_task_identifier = (snapshot["DBInstanceIdentifier"] + '-').replace("--", "-") + snapshot["SnapshotCreateTime"][:10] + '-' + message_id
+            start_export_task(export_task_identifier, source_arn)
+        else:
+            logger.info(f"Ignoring event notification for {message['Source ID']}")
+            logger.info(
+                f"Function is configured to accept "
+                f"notifications for backup jobs of {DB_NAME} only."
+            )
     else:
-        logger.info(f"Ignoring event notification for {message['Source ID']}")
-        logger.info(
-            f"Function is configured to accept "
-            f"notifications for backup jobs of {DB_NAME} only"
-        )
-
-
-def get_resourceArn_from_job(job_id):
-    response = boto3.client("backup").describe_backup_job(BackupJobId=job_id)
-
-    if response:
-        logger.debug("backup job describe:")
-        logger.debug(response)
-
-        response["CreationDate"] = str(response["CreationDate"])
-        
-        if ("CompletionDate" in response):
-            response["CompletionDate"] = str(response["CompletionDate"])
-
-        response["StartBy"] = str(response["StartBy"])
-
-        return response
-    else:
-        return None
+        logger.error(f"Could not describe snapshot of source {message['Source ID']}")
+        raise Exception(f"Could not describe snapshot of source {message['Source ID']}, snapshot ID: {snapshot_id}")
 
 
 def start_export_task(export_task_identifier, source_arn):
