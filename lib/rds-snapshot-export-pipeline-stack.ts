@@ -150,7 +150,7 @@ export class RdsSnapshotExportPipelineStack extends cdk.Stack {
             "Effect": "Allow",
           },
           {
-            "Principal": lambdaExecutionRole.roleArn,
+            "Principal": { "AWS": lambdaExecutionRole.roleArn },
             "Action": [
               "kms:CreateGrant",
               "kms:ListGrants",
