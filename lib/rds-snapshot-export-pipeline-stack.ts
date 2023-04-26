@@ -193,9 +193,13 @@ export class RdsSnapshotExportPipelineStack extends Stack {
             "Effect": "Allow"
           },
           {
+<<<<<<< HEAD
             "Principal": {
               "AWS": lambdaExecutionRole.roleArn
             },
+=======
+            "Principal": { "AWS": lambdaExecutionRole.roleArn },
+>>>>>>> upstream/master
             "Action": [
               "kms:CreateGrant",
               "kms:ListGrants",
