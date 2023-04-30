@@ -26,6 +26,8 @@
     "@aws-cdk/aws-rds": "1.187.0",
     "@aws-cdk/aws-sns": "1.187.0",
     "@aws-cdk/core": "1.95.2",
+    "aws-cdk-lib": "^2.76.0",
+    "constructs": "^10.2.7",
     "source-map-support": "^0.5.16"
   }
 }
