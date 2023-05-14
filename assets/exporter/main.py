@@ -76,12 +76,14 @@ def handle_message(message, message_id):
     # Each snapshot type and source requires a slightly different handling
     for i, rds_event_id in enumerate(rds_event_ids):
 
+        # Identify and process an automated RDS snapshot
         if message["Event ID"].endswith(rds_event_id) and re.match(
             "^rds:" + DB_NAME + "-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}$",
             message["Source ID"],
         ) and rds_snapshot_types[i] == RdsSnapshotType.AUTOMATED:
             process_automated_snapshot(message, message_id, db_snapshot_types[i])
             break
+        # Identify and process an Manual RDS snapshot, which was not created by AWS Backup
         elif message["Event ID"].endswith(rds_event_id) and (
             not re.match(
                 "^rds:" + DB_NAME + "-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}$",
@@ -91,6 +93,7 @@ def handle_message(message, message_id):
         ) and rds_snapshot_types[i] == RdsSnapshotType.MANUAL:
             process_manual_snapshot(message, message_id, db_snapshot_types[i])
             break
+        # Identify and process an AWS Backup snapshot
         elif (message["Event ID"].endswith(rds_event_id) and 
             message["Source ID"].startswith("awsbackup:job-") and 
             rds_snapshot_types[i] == RdsSnapshotType.BACKUP
