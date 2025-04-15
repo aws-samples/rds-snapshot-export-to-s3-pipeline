@@ -18,7 +18,7 @@
     "@types/node": "13.9.1",
     "ts-node": "^8.6.2",
     "typescript": "~3.8.3",
-    "aws-cdk-lib": "^2.186.0",
+    "aws-cdk-lib": "^2.189.1",
     "constructs": "^10.2.7",
     "source-map-support": "^0.5.16"
   }
