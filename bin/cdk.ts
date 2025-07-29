@@ -5,7 +5,7 @@ import { RdsSnapshotExportPipelineStack, RdsEventId, RdsSnapshotType } from '../
 
 const app = new cdk.App();
 new RdsSnapshotExportPipelineStack(app, 'RdsSnapshotExportToS3Pipeline', {
-  dbName: 'db-mysql-main',
+  dbName: '<your-db-name>',
   rdsEvents:
     [
       {
@@ -21,5 +21,5 @@ new RdsSnapshotExportPipelineStack(app, 'RdsSnapshotExportToS3Pipeline', {
         rdsSnapshotType: RdsSnapshotType.DB_BACKUP_SNAPSHOT
       }
     ],
-  s3BucketName: 'db-mysql-main-2023-06-07',
+  s3BucketName: '<your-target-s3-bucket-name>',
 });

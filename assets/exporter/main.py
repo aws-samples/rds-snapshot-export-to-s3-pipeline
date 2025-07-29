@@ -71,6 +71,7 @@ def handler(event, context):
 def handle_message(message, message_id):
 
     event_counter = 0
+    rds_event_re = "^rds:" + DB_NAME + "-\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}$"
 
     # Lambda function can be triggered by multiple events, from manual, automanted or backup service generated snapshots.
     # Each snapshot type and source requires a slightly different handling
@@ -78,16 +79,16 @@ def handle_message(message, message_id):
 
         # Identify and process an automated RDS snapshot
         if message["Event ID"].endswith(rds_event_id) and re.match(
-            "^rds:" + DB_NAME + "-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}$",
-            message["Source ID"],
+            rds_event_re,
+            message["Source ID"]
         ) and rds_snapshot_types[i] == RdsSnapshotType.AUTOMATED:
             process_automated_snapshot(message, message_id, db_snapshot_types[i])
             break
         # Identify and process an Manual RDS snapshot, which was not created by AWS Backup
         elif message["Event ID"].endswith(rds_event_id) and (
             not re.match(
-                "^rds:" + DB_NAME + "-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}$",
-                message["Source ID"],
+                rds_event_re,
+                message["Source ID"]
             ) and 
             not message["Source ID"].startswith("awsbackup:")
         ) and rds_snapshot_types[i] == RdsSnapshotType.MANUAL:

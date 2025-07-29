@@ -22,6 +22,9 @@ export enum RdsEventId {
   // For automated snapshots of non-Aurora RDS clusters
   DB_AUTOMATED_SNAPSHOT_CREATED = "RDS-EVENT-0091",
 
+  // // For manual snapshots of Aurora RDS clusters
+  DB_MANUAL_AURORA_SNAPSHOT_CREATED = "RDS-EVENT-0075",
+
   // For manual snapshots and backup service snapshots of non-Aurora RDS clusters
   DB_MANUAL_SNAPSHOT_CREATED = "RDS-EVENT-0042",
 
@@ -243,8 +246,8 @@ export class RdsSnapshotExportPipelineStack extends Stack {
       ) : true;
 
     new aws_lambda.Function(this, "LambdaFunction", {
-      functionName: props.dbName + "-rds-snapshot-exporter",
-      runtime: aws_lambda.Runtime.PYTHON_3_8,
+      functionName: props.dbName.substring(0, 42) + "-rds-snapshot-exporter",
+      runtime: aws_lambda.Runtime.PYTHON_3_13,
       handler: "main.handler",
       code: aws_lambda.Code.fromAsset(path.join(__dirname, "/../assets/exporter/")),
       environment: {
@@ -255,7 +258,7 @@ export class RdsSnapshotExportPipelineStack extends Stack {
         SNAPSHOT_BUCKET_NAME: bucket.bucketName,
         SNAPSHOT_TASK_ROLE: snapshotExportTaskRole.roleArn,
         SNAPSHOT_TASK_KEY: snapshotExportEncryptionKey.keyArn,
-        DB_SNAPSHOT_TYPES: new Array(props.rdsEvents.map(e => { return e.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED ? "cluster-snapshot" : "snapshot" })).join()
+        DB_SNAPSHOT_TYPES: new Array(props.rdsEvents.map(e => { return (e.rdsEventId == RdsEventId.DB_AUTOMATED_AURORA_SNAPSHOT_CREATED) || e.rdsEventId == RdsEventId.DB_MANUAL_AURORA_SNAPSHOT_CREATED ? "cluster-snapshot" : "snapshot" })).join()
       },
       role: lambdaExecutionRole,
       timeout: Duration.seconds(30),
